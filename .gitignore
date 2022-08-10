@@ -74,10 +74,12 @@ Plugins/*/Intermediate/*
 DerivedDataCache/*
 
 # Python libraries (download these using Content/Pythontal/install-openpyxl.(bat|sh)
-Content/Python/et_xmlfile/*
-Content/Python/et_xmlfile-1.1.0.dist-info/*
-Content/Python/openpyxl/*
-Content/Python/openpyxl-3.0.9.dist-info/*
+Content/Python/*
+!Content/Python/init_unreal.py
+!Content/Python/pm_xlsx_column_parser.py
+!Content/Python/pm_xlsx_parser.py
+!Content/Python/install-openpyxl.bat
+!Content/Python/install-openpyxl.sh
 
 # Build artifacts
 PMXlsxImporter*.zip

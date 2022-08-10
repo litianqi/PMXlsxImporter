@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PMXlsxImporterPythonReflection.h"
 #include "PMXlsxImporterPythonBridge.generated.h"
 
 USTRUCT(Blueprintable, BlueprintType)
@@ -36,4 +37,7 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Python)
 	TArray<FPMXlsxImporterPythonBridgeDataAssetInfo> ReadWorksheet(const FString& AbsoluteFilePath, const FString& WorksheetName);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = Python)
+	FString ReadWorksheetAsJson(const FString& AbsoluteFilePath, const FString& WorksheetName, const FPMXlsxWorksheetTypeInfo& WorksheetTypeInfo);
 };

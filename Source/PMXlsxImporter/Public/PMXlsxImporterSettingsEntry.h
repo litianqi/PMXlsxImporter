@@ -3,10 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PMXlsxDataAsset.h"
 #include "PMXlsxImporterPythonBridge.h"
 #include "PMXlsxImporterContextLogger.h"
 #include "SourceControlHelpers.h"
 #include "PMXlsxImporterSettingsEntry.generated.h"
+
+UENUM()
+enum class EPMXlsxImportType : uint8
+{
+	DataAsset,
+	DataTable
+};
 
 USTRUCT(BlueprintType)
 struct PMXLSXIMPORTER_API FPMXlsxImporterSettingsEntry
@@ -15,7 +23,13 @@ struct PMXLSXIMPORTER_API FPMXlsxImporterSettingsEntry
 
 public:
 	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter)
+	EPMXlsxImportType ImportType = EPMXlsxImportType::DataAsset;
+	
+	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter, meta=(EditCondition="ImportType==EPMXlsxImportType::DataAsset"))
 	FPrimaryAssetType DataAssetType;
+
+	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter, meta=(EditCondition="ImportType==EPMXlsxImportType::DataTable"))
+	TSoftObjectPtr<UScriptStruct> DataTableRowType;
 
 	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter, meta = (RelativeToGameDir))
 	FFilePath XlsxFile;
@@ -64,6 +78,10 @@ private:
 	// Returns "/Game/<OutputDir>/<AssetName>", which is the format required by UEditorAssetLibrary functions
 	FString GetProjectRootOutputPath(const FString& AssetName) const;
 
+	UStruct* GetReflectionStruct(FPMXlsxImporterContextLogger& InOutErrors) const;
+
 	// AssetPath is from UEditorAssetLibrary::ListAssets, so format is "/Game/.../AssetName.AssetName"
 	bool ShouldAssetExist(const FString& AssetPath, const TArray<FPMXlsxImporterPythonBridgeDataAssetInfo>& ParsedWorksheet) const;
+
+	FString GetDataTableName() const;
 };

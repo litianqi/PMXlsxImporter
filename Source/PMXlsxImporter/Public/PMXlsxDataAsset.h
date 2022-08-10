@@ -8,9 +8,18 @@
 #include "PMXlsxDataAsset.generated.h"
 
 UCLASS()
-class PMXLSXIMPORTER_API UPMXlsxDataAsset : public UDataAsset
+class PMXLSXIMPORTER_API UPMXlsxDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
+
+public:
+	/** Set to true to ignore extra fields in the import data, if false it will warn about them */
+	UPROPERTY(EditAnywhere, Category=ImportOptions)
+	uint8 bIgnoreExtraFields : 1;
+
+	/** Set to true to ignore any fields that are expected but missing, if false it will warn about them */
+	UPROPERTY(EditAnywhere, Category = ImportOptions)
+	uint8 bIgnoreMissingFields : 1;
 
 #ifdef WITH_EDITOR
 public:
@@ -19,21 +28,21 @@ public:
 	// or Unreal won't be able to convert the map properly.
 	// Record all errors by adding them to InOutErrors
 	// Override this function if you want to parse non-UPROPERTY fields.
-	void ImportFromXLSX(const TMap<FString, FString>& Values, FPMXlsxImporterContextLogger& InOutErrors);
+	void ImportFromXLSX(const TSharedRef<FJsonObject>& JsonData, FPMXlsxImporterContextLogger& InOutErrors);
 
 	// Validate that this object has been set up correctly against both itself and the UPMXlsxDataAsset that came
 	// before it in the XLSX file.
 	void Validate(const UPMXlsxDataAsset* Previous, FPMXlsxImporterContextLogger& InOutErrors) const;
 
 protected:
-	virtual void ImportFromXLSXImpl(const TMap<FString, FString>& Values, FPMXlsxImporterContextLogger& InOutErrors);
-	virtual void ValidateImpl(FPMXlsxImporterContextLogger& InOutErrors) const;
-	virtual void ValidateAgainstPreviousImpl(const UPMXlsxDataAsset* Previous, FPMXlsxImporterContextLogger& InOutErrors) const {}
 
 	// ImportFromXLSX makes a copy of this before parsing anything. This function checks if anything has changed
 	// by exporting this and the copy to text, then comparing the text results.
 	// If your subclass parses non-UPROPERTY properties, override WasModified and check those properties here.
 	virtual bool WasModified(UPMXlsxDataAsset* Original);
+	virtual void ImportFromXLSXImpl(const TSharedRef<FJsonObject>& JsonData, FPMXlsxImporterContextLogger& InOutErrors);
+	virtual void ValidateImpl(FPMXlsxImporterContextLogger& InOutErrors) const;
+	virtual void ValidateAgainstPreviousImpl(const UPMXlsxDataAsset* Previous, FPMXlsxImporterContextLogger& InOutErrors) const {}
 
 	// Parse Value according to type info in Property, then store the parsed value in Result.
 	// All Parse* functions return a bool indicating whether the string was successfully parsed.

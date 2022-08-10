@@ -52,7 +52,8 @@ public class PMXlsxImporter : ModuleRules
 				"Blutility",
 				"UMG",
 				"UMGEditor",
-				"SourceControl"
+				"SourceControl",
+				"Json",
 				// ... add private dependencies that you statically link with here ...	
 			}
             );

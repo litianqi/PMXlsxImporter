@@ -1,71 +1,50 @@
 // Copyright 2022 Proletariat, Inc.
 
 #include "PMXlsxDataAsset.h"
+
+#include "PMXlsxDataAssetImporterJSON.h"
 #include "Misc/DefaultValueHelper.h"
 #include "PMXlsxImporterLog.h"
 #include "Engine/AssetManager.h"
 #include "EditorAssetLibrary.h"
+#include "PMXlsxImporterSettings.h"
+#include "PMXlsxMetadata.h"
 #include "Exporters/Exporter.h"
 #include "UnrealExporter.h"
-
-static const TCHAR* const IMPORT_FROM_XLSX_METADATA_TAG = TEXT("ImportFromXLSX");
 
 static const TCHAR* const TRUE_TEXT = TEXT("TRUE");
 static const TCHAR* const FALSE_TEXT = TEXT("FALSE");
 
 #ifdef WITH_EDITOR
-void UPMXlsxDataAsset::ImportFromXLSX(const TMap<FString, FString>& Values, FPMXlsxImporterContextLogger& InOutErrors)
+void UPMXlsxDataAsset::ImportFromXLSX(const TSharedRef<FJsonObject>& JsonData, FPMXlsxImporterContextLogger& InOutErrors)
 {
 	auto ScopedErrorContext = InOutErrors.PushContext(FString::Printf(TEXT(": %s %s"), *GetClass()->GetName(), *GetName()));
-	ImportFromXLSXImpl(Values, InOutErrors);
+	ImportFromXLSXImpl(JsonData, InOutErrors);
 }
 
-void UPMXlsxDataAsset::ImportFromXLSXImpl(const TMap<FString, FString>& Values, FPMXlsxImporterContextLogger& InOutErrors)
+void UPMXlsxDataAsset::ImportFromXLSXImpl(const TSharedRef<FJsonObject>& JsonData, FPMXlsxImporterContextLogger& InOutErrors)
 {
 	UE_LOG(LogPMXlsxImporter, VeryVerbose, TEXT("Importing data from python to %s %s"), *GetClass()->GetName(), *GetName());
-	for (auto& kvp : Values)
-	{
-		UE_LOG(LogPMXlsxImporter, VeryVerbose, TEXT("\t%s: %s"), *kvp.Key, *kvp.Value);
-	}
 
 	// Keep a copy around to see if anything actually gets changed.
 	// It would be more accurate to pull Original from what's currently checked into source control,
 	// but that would be very slow.
 	UPMXlsxDataAsset* Original = DuplicateObject(this, nullptr, GetFName());
 
-	// https://ikrima.dev/ue4guide/engine-programming/uobject-reflection/uobject-reflection/
-	UE_LOG(LogPMXlsxImporter, VeryVerbose, TEXT("Iterating over properties of %s %s"), *GetClass()->GetName(), *GetName());
-	for (TFieldIterator<FProperty> PropertyIterator(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIterator; ++PropertyIterator)
+	TArray<FString> OutProblems;
+	FPMXlsxDataAssetImporterJSON(*this, JsonData, OutProblems).ReadAsset();
+
+	for (FString Problem : OutProblems)
 	{
-		FString CPPName = PropertyIterator->GetNameCPP();
-		FString CPPType = PropertyIterator->GetCPPType();
-		auto ScopedErrorContext = InOutErrors.PushContext(FString::Printf(TEXT(".%s %s"), *CPPName, *CPPType));
-
-		bool bHasImportMetadata = PropertyIterator->HasMetaData(IMPORT_FROM_XLSX_METADATA_TAG);
-		if (!bHasImportMetadata)
-		{
-			UE_LOG(LogPMXlsxImporter, VeryVerbose,
-				TEXT("\tSkipping %s %s because it does not have metadata tag %s"),
-				*CPPType, *CPPName, IMPORT_FROM_XLSX_METADATA_TAG
-			);
-			continue;
-		}
-
-		const FString* Value = Values.Find(CPPName);
-		if (Value == nullptr)
-		{
-			InOutErrors.Logf(TEXT("No value found (are you missing a column named \"%s\"?)"), *CPPName);
-			continue;
-		}
-
-		ParseValue(**PropertyIterator, *Value, PropertyIterator->ContainerPtrToValuePtr<void>(this), InOutErrors);
+		InOutErrors.Logf(TEXT("%s"), *Problem);
 	}
 
 	// Telling Unreal to save a file guarantees the file becomes modified even if there aren't meaningful changes to
 	// that file's data. We only want to check out and save modified assets.
 	if (WasModified(Original))
 	{
-		if (!UEditorAssetLibrary::CheckoutLoadedAsset(this))
+		const UPMXlsxImporterSettings* SettingsCDO = GetDefault<UPMXlsxImporterSettings>();
+		if (SettingsCDO->bCheckoutGeneratedAssets && !UEditorAssetLibrary::CheckoutLoadedAsset(this))
 		{
 			// CheckoutLoadedAsset will print its own errors, but we want to add one here so that we can
 			// properly track if the run as a whole succeeded or not.
@@ -100,7 +79,7 @@ void UPMXlsxDataAsset::ValidateImpl(FPMXlsxImporterContextLogger& InOutErrors) c
 		FString CPPType = PropertyIterator->GetCPPType();
 		auto ScopedErrorContext = InOutErrors.PushContext(FString::Printf(TEXT(".%s %s"), *CPPName, *CPPType));
 
-		bool bHasImportMetadata = PropertyIterator->HasMetaData(IMPORT_FROM_XLSX_METADATA_TAG);
+		bool bHasImportMetadata = PropertyIterator->HasMetaData(FPMXlsxMetadata::IMPORT_FROM_XLSX_METADATA_TAG);
 		if (!bHasImportMetadata)
 		{
 			continue;

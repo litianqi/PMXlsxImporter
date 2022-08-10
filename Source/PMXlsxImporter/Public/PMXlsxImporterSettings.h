@@ -29,6 +29,12 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter)
 	int32 MaxErrors = 100;
 
+	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter)
+	bool bCheckoutGeneratedAssets = false;
+
+	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter)
+	FString DataTableAssetPrefix = TEXT("DT_");
+
 	void ImportCheckedOut(FPMXlsxImporterContextLogger& InOutErrors) const;
 	void ImportAll(FPMXlsxImporterContextLogger& InOutErrors) const;
 	void ImportEntry(int32 Index, FPMXlsxImporterContextLogger& InOutErrors) const;

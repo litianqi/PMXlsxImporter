@@ -9,6 +9,8 @@
 #include "PMXlsxImporterContextLogger.h"
 #include "EditorUtilityWidgetBlueprint.h"
 #include "EditorUtilitySubsystem.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 void UPMXlsxImporterImportSelectionWindow::Open()
 {
@@ -106,6 +108,31 @@ void UPMXlsxImporterImportSelectionWindow::OnImportButtonClicked()
 		UE_LOG(LogPMXlsxImporter, Error, TEXT("No import option checked"));
 	}
 
-	UE_LOG(LogPMXlsxImporter, Log, TEXT("Import run completed with %i errors"), Errors.Num());
+	if (Errors.Num() > 0)
+	{
+		UE_LOG(LogPMXlsxImporter, Error, TEXT("Import run completed with %i errors"), Errors.Num());
+		FNotificationInfo Info( NSLOCTEXT("XlsxImporter", "Import Failed", "Xlsx import failed! Please check log for details.") );
+		Info.ExpireDuration = 5.0f;
+		Info.bUseLargeFont = false;
+		Info.bUseSuccessFailIcons = true;
+		const TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+		if (Notification.IsValid())
+		{
+			Notification->SetCompletionState(SNotificationItem::CS_Fail);
+		}
+	}
+	else
+	{
+		UE_LOG(LogPMXlsxImporter, Log, TEXT("Import run completed with 0 errors"));
+		FNotificationInfo Info( NSLOCTEXT("XlsxImporter", "Import Success", "Xlsx import success!") );
+		Info.ExpireDuration = 5.0f;
+		Info.bUseLargeFont = false;
+		Info.bUseSuccessFailIcons = true;
+		const TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+		if (Notification.IsValid())
+		{
+			Notification->SetCompletionState(SNotificationItem::CS_Success);
+		}
+	}
 	Errors.Flush();
 }
