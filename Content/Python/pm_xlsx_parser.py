@@ -146,7 +146,7 @@ class PMXlsxParser:
         row_index = start_row
         for row in self.worksheet.iter_rows(min_row=start_row):
             if not row[0].value or row[0].value.isspace():
-                break  # not valid since this row    
+                break  # not valid since this row
             row_dict = self.__parse_data_row(row_index)
             result_array.append(row_dict)
             row_index += 1

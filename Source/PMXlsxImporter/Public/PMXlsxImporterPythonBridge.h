@@ -14,10 +14,6 @@ struct FPMXlsxImporterPythonBridgeDataAssetInfo
 public:
 	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
 	FString AssetName;
-
-	// Map of header to value for that data
-	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
-	TMap<FString, FString> Data;
 };
 
 UCLASS(Blueprintable)
@@ -36,8 +32,8 @@ public:
 	TArray<FString> ReadWorksheetNames(const FString& AbsoluteFilePath);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Python)
-	TArray<FPMXlsxImporterPythonBridgeDataAssetInfo> ReadWorksheet(const FString& AbsoluteFilePath, const FString& WorksheetName);
+	TArray<FString> ReadWorksheetNameColumn(const FString& AbsoluteFilePath, const FString& WorksheetName, int32 DataStartRow);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Python)
-	FString ReadWorksheetAsJson(const FString& AbsoluteFilePath, const FString& WorksheetName, const FPMXlsxWorksheetTypeInfo& WorksheetTypeInfo);
+	FString ReadWorksheetAsJson(const FString& AbsoluteFilePath, const FString& WorksheetName, int32 HeaderRow, int32 DataStartRow, const FPMXlsxWorksheetTypeInfo& WorksheetTypeInfo);
 };

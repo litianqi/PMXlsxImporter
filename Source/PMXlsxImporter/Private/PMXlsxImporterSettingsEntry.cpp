@@ -117,11 +117,15 @@ void FPMXlsxImporterSettingsEntry::SyncAssets(FPMXlsxImporterContextLogger& InOu
 			return; // UPMXlsxImporterPythonBridge::Get() logs an error when it returns null
 		}
 
-		TArray<FPMXlsxImporterPythonBridgeDataAssetInfo> ParsedWorksheet = PythonBridge->ReadWorksheet(XlsxAbsolutePath, WorksheetName);
+		const UPMXlsxImporterSettings* ImporterSettings = GetDefault<UPMXlsxImporterSettings>();
+		check(ImporterSettings);
+		
+		TArray<FString> AssetNameColumn = PythonBridge->ReadWorksheetNameColumn(XlsxAbsolutePath, WorksheetName,
+			ImporterSettings->XlsxDataStartRow);
 
-		for (const FPMXlsxImporterPythonBridgeDataAssetInfo& Info : ParsedWorksheet)
+		for (const FString& AssetName : AssetNameColumn)
 		{
-			const FString AssetPath = GetProjectRootOutputPath(Info.AssetName);
+			const FString AssetPath = GetProjectRootOutputPath(AssetName);
 			// Note that DoesAssetExist is case-insensitive.
 			// This is good - perforce will have issues if you change the case of a file.
 			if (!UEditorAssetLibrary::DoesAssetExist(AssetPath))
@@ -129,7 +133,7 @@ void FPMXlsxImporterSettingsEntry::SyncAssets(FPMXlsxImporterContextLogger& InOu
 				// https://isaratech.com/save-a-procedurally-generated-texture-as-a-new-asset/
 				UPackage* Package = CreatePackage(*AssetPath);
 				Package->FullyLoad();
-				UPMXlsxDataAsset* Asset = NewObject<UPMXlsxDataAsset>(Package, Class, FName(Info.AssetName), RF_Public | RF_Standalone | RF_MarkAsRootSet);
+				UPMXlsxDataAsset* Asset = NewObject<UPMXlsxDataAsset>(Package, Class, FName(AssetName), RF_Public | RF_Standalone | RF_MarkAsRootSet);
 				Package->MarkPackageDirty();
 				FAssetRegistryModule::AssetCreated(Asset);
 				const FString PackageFileName = FPackageName::LongPackageNameToFilename(AssetPath, FPackageName::GetAssetPackageExtension());
@@ -313,8 +317,12 @@ void FPMXlsxImporterSettingsEntry::ParseData(FPMXlsxImporterContextLogger& InOut
 	
 	FPMXlsxWorksheetTypeInfo WorksheetTypeInfo;
 	WorksheetTypeInfo.ReadStruct(Struct);
+
+	const UPMXlsxImporterSettings* ImporterSettings = GetDefault<UPMXlsxImporterSettings>();
+	check(ImporterSettings);
 	
-	const FString JSONData = PythonBridge->ReadWorksheetAsJson(XlsxAbsolutePath, WorksheetName, WorksheetTypeInfo);
+	const FString JSONData = PythonBridge->ReadWorksheetAsJson(XlsxAbsolutePath, WorksheetName,
+		ImporterSettings->XlsxHeaderRow, ImporterSettings->XlsxDataStartRow, WorksheetTypeInfo);
 	if (JSONData.IsEmpty())
 	{
 		InOutErrors.Log(TEXT("Json data is empty."));
@@ -338,8 +346,6 @@ void FPMXlsxImporterSettingsEntry::ParseData(FPMXlsxImporterContextLogger& InOut
 	
 	if (ImportType == EPMXlsxImportType::DataAsset)
 	{
-		TArray<FPMXlsxImporterPythonBridgeDataAssetInfo> ParsedWorksheet = PythonBridge->ReadWorksheet(XlsxAbsolutePath, WorksheetName);
-
 		// Iterate over rows
 		for (int32 RowIdx = 0; RowIdx < ParsedTableRows.Num(); ++RowIdx)
 		{
@@ -423,12 +429,16 @@ void FPMXlsxImporterSettingsEntry::Validate(FPMXlsxImporterContextLogger& InOutE
 		return; // UPMXlsxImporterPythonBridge::Get() logs an error when it returns null
 	}
 
-	TArray<FPMXlsxImporterPythonBridgeDataAssetInfo> ParsedWorksheet = PythonBridge->ReadWorksheet(XlsxAbsolutePath, WorksheetName);
+	const UPMXlsxImporterSettings* ImporterSettings = GetDefault<UPMXlsxImporterSettings>();
+	check(ImporterSettings);
+
+	TArray<FString> AssetNameColumn = PythonBridge->ReadWorksheetNameColumn(XlsxAbsolutePath, WorksheetName,
+		ImporterSettings->XlsxDataStartRow);
 
 	UPMXlsxDataAsset* PreviousAsset = nullptr;
-	for (const FPMXlsxImporterPythonBridgeDataAssetInfo& Info : ParsedWorksheet)
+	for (const FString& AssetName : AssetNameColumn)
 	{
-		FString AssetPath = GetProjectRootOutputPath(Info.AssetName);
+		FString AssetPath = GetProjectRootOutputPath(AssetName);
 		UPMXlsxDataAsset* Asset = Cast<UPMXlsxDataAsset>(UEditorAssetLibrary::LoadAsset(AssetPath));
 		if (Asset == nullptr)
 		{

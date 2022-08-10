@@ -23,61 +23,33 @@ class PMXlsxImporterPythonBridgeImpl(unreal.PMXlsxImporterPythonBridge):
         unreal.log("All sheet names: {0}".format(workbook.sheetnames))
         return workbook.sheetnames
 
-    def parse_headers(self, row):
-        headers = []
-        for cell in row:
-            headers.append(cell.value)
-        return headers
-
     @unreal.ufunction(override=True)
-    def read_worksheet(self, absolute_file_path, worksheet_name):
+    def read_worksheet_name_column(self, absolute_file_path, worksheet_name, data_start_row):
         with open(absolute_file_path, "rb") as f:
             in_mem_file = io.BytesIO(f.read())
         workbook = openpyxl.load_workbook(in_mem_file, read_only=True, data_only=True)
         worksheet = workbook[worksheet_name]
-
+        
         results = []
 
-        # with unreal.ScopedEditorTransaction("Import from xlsx") as transaction:
-        # with unreal.ScopedSlowTask(worksheet.rows.length, "Importing from xlsx") as slow_task:
-        # slow_task.make_dialog(True)
-        headers = None
-        row_index = 0
-        for row in worksheet.rows:
-            # if slow_task.should_cancel():
-            #    break
-            # slow_task.enter_progress_frame(i)
-
-            if headers == None:
-                headers = self.parse_headers(row)
-                continue
-
-            result = unreal.PMXlsxImporterPythonBridgeDataAssetInfo()
-
-            column_index = 0
-            for cell in row:
-                # unreal.log("{0}: {1} {2}".format(column_index, headers[column_index], cell.value))
-                # force keys and values to strings because unreal doesn't know how to convert other types automatically, and we want to pass a TMap<FString, FString> to unreal
-                result.data[str(headers[column_index])] = str(cell.value)
-                column_index += 1
-
-            result.asset_name = result.data['Name']
-            results.append(result)
-
-            row_index += 1
+        for row in worksheet.iter_rows(min_row=data_start_row):
+            name_cell = row[0]  # Name should always be the first column
+            if not name_cell.value or name_cell.value.isspace():
+                break  # not valid since this row
+            results.append(str(name_cell.value))
 
         return results
 
     @unreal.ufunction(override=True)
-    def read_worksheet_as_json(self, absolute_file_path, worksheet_name, worksheet_type_info):
+    def read_worksheet_as_json(self, absolute_file_path, worksheet_name, header_row, data_start_row, worksheet_type_info):
         # parse header row
         parser = xlsx_parser.PMXlsxParser(absolute_file_path, worksheet_name, worksheet_type_info)
-        valid = parser.parse_header_row(1)
+        valid = parser.parse_header_row(header_row)
         if not valid:
             return "ERROR"  # header parse failed, return early
         
         # parse data rows
-        data_list = parser.parse_data(2)
+        data_list = parser.parse_data(data_start_row)
 
         # convert data to json string
         json_string = json.dumps(data_list, indent=4)

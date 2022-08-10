@@ -25,6 +25,12 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter)
 	TArray<FPMXlsxImporterSettingsEntry> AssetImportSettings;
 
+	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter)
+	int32 XlsxHeaderRow = 1;
+
+	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter)
+	int32 XlsxDataStartRow = 2;
+
 	// While importing, up to this many errors will be accumulated and reported before stopping the import process
 	UPROPERTY(EditAnywhere, Config, Category = XlsxImporter)
 	int32 MaxErrors = 100;
