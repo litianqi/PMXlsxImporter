@@ -102,11 +102,6 @@ bool FPMXlsxDataAssetImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InP
 		FProperty* BaseProp = *It;
 		check(BaseProp);
 
-		if (!BaseProp->HasMetaData(FPMXlsxMetadata::IMPORT_FROM_XLSX_METADATA_TAG))
-		{
-			continue;
-		}
-
 		const FString ColumnName = DataTableUtils::GetPropertyExportName(BaseProp);
 
 		TSharedPtr<FJsonValue> ParsedPropertyValue;
@@ -132,7 +127,7 @@ bool FPMXlsxDataAssetImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InP
 			}
 #endif // WITH_EDITOR
 
-			if (!DataAsset->bIgnoreMissingFields)
+			if (!DataAsset->bIgnoreMissingFields && BaseProp->HasMetaData(FPMXlsxMetadata::IMPORT_FROM_XLSX_METADATA_TAG))
 			{
 				ImportProblems.Add(FString::Printf(TEXT("Row '%s' is missing an entry for '%s'."), *InRowName.ToString(), *ColumnName));
 			}

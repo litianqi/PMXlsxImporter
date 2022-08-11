@@ -16,6 +16,12 @@ static const TCHAR* const TRUE_TEXT = TEXT("TRUE");
 static const TCHAR* const FALSE_TEXT = TEXT("FALSE");
 
 #ifdef WITH_EDITOR
+UPMXlsxDataAsset::UPMXlsxDataAsset()
+{
+	bIgnoreExtraFields = false;
+	bIgnoreMissingFields = false;
+}
+
 void UPMXlsxDataAsset::ImportFromXLSX(const TSharedRef<FJsonObject>& JsonData, FPMXlsxImporterContextLogger& InOutErrors)
 {
 	auto ScopedErrorContext = InOutErrors.PushContext(FString::Printf(TEXT(": %s %s"), *GetClass()->GetName(), *GetName()));

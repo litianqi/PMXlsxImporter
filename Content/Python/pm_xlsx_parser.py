@@ -96,9 +96,8 @@ class PMXlsxParser:
         #     return False
 
         if len(self.worksheet_type_info.top_fields) == 0:
-            unreal.log_error("{0}-{1} doesn't has any column".
+            raise ValueError("{0}-{1} doesn't has any column".
                              format(self.file_name, self.worksheet_name))
-            return False
 
         unreal.log("{0}-{1} PARSE ALL COLUMNS:".format(self.file_name, self.worksheet_name))
         possible_field_indices = [self.__get_first_child_field_index(self.worksheet_type_info.top_fields[0])]
@@ -108,11 +107,11 @@ class PMXlsxParser:
                 break
 
             column_parser = xlsx_column_parser.PMXlsxColumnParser(column_name, self.worksheet_type_info)
-            valid, reason = column_parser.parse_column_header(possible_field_indices)
-            if not valid:
-                unreal.log_error("{0}-{1}'s column {2} is not consist with cpp type or name, reason: {3}".
-                                 format(self.file_name, self.worksheet_name, column_name, reason))
-                return False
+            try:
+                column_parser.parse_column_header(possible_field_indices)
+            except (ValueError, Exception) as ex:
+                raise ValueError("{0}-{1}'s column {2} is not consist with cpp type or name, reason: {3}".
+                                 format(self.file_name, self.worksheet_name, column_name, str(ex))) from None
             unreal.log("{0}-{1} - {2}: {3} (candidates: {4})".
                        format(self.file_name, self.worksheet_name, column_name, column_parser.field_index,
                               possible_field_indices))
@@ -125,11 +124,8 @@ class PMXlsxParser:
         # check is any cpp fields are missing in xlsx
         last_field_index = self.__get_last_child_field_index(self.worksheet_type_info.top_fields[-1])
         if self.column_parsers[-1].field_index != last_field_index:
-            unreal.log_error("{0}-{1}: one or more columns are missing".
+            raise ValueError("{0}-{1}: one or more columns are missing".
                              format(self.file_name, self.worksheet_name))
-            return False
-        
-        return True
 
     def __parse_data_row(self, row_index):
         row_dict = {}
@@ -137,7 +133,11 @@ class PMXlsxParser:
         column_index = 0
         for column_parser in self.column_parsers:
             cell_raw_data = row[column_index].value
-            column_parser.parse_data_and_insert_to_dict(cell_raw_data, row_dict)
+            try:
+                column_parser.parse_data_and_insert_to_dict(cell_raw_data, row_dict)
+            except (ValueError, Exception) as ex:
+                raise ValueError("Cell(row {0} column {1})'s value {2} is not valid!".
+                                 format(row_index, column_parser.column_name, cell_raw_data)) from None
             column_index += 1
         return row_dict
 

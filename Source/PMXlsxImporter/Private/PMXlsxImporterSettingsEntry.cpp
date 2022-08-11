@@ -119,11 +119,16 @@ void FPMXlsxImporterSettingsEntry::SyncAssets(FPMXlsxImporterContextLogger& InOu
 
 		const UPMXlsxImporterSettings* ImporterSettings = GetDefault<UPMXlsxImporterSettings>();
 		check(ImporterSettings);
-		
-		TArray<FString> AssetNameColumn = PythonBridge->ReadWorksheetNameColumn(XlsxAbsolutePath, WorksheetName,
-			ImporterSettings->XlsxDataStartRow);
 
-		for (const FString& AssetName : AssetNameColumn)
+		FPMXlsxImporterPythonBridgeAssetNames AssetNames = PythonBridge->ReadWorksheetAssetNames(XlsxAbsolutePath, WorksheetName,
+			ImporterSettings->XlsxHeaderRow, ImporterSettings->XlsxDataStartRow);
+		if (!AssetNames.Error.IsEmpty())
+		{
+			InOutErrors.Logf(TEXT("Could not sync assets: could not read asset names from worksheet:\n%s"), *AssetNames.Error);
+			return;
+		}
+
+		for (const FString& AssetName : AssetNames.AssetNames)
 		{
 			const FString AssetPath = GetProjectRootOutputPath(AssetName);
 			// Note that DoesAssetExist is case-insensitive.
@@ -272,26 +277,26 @@ void FPMXlsxImporterSettingsEntry::ParseData(FPMXlsxImporterContextLogger& InOut
 	if ((ImportType == EPMXlsxImportType::DataAsset && !DataAssetType.IsValid()) ||
 		(ImportType == EPMXlsxImportType::DataTable && DataTableRowType.IsNull()))
 	{
-		InOutErrors.Log(TEXT("Could not sync assets: invalid data asset type"));
+		InOutErrors.Log(TEXT("Could not parse data: invalid data asset type"));
 		return;
 	}
 
 	const FString& XlsxAbsolutePath = GetXlsxAbsolutePath();
 	if (XlsxAbsolutePath.IsEmpty())
 	{
-		InOutErrors.Log(TEXT("Could not parse asset data: xlsx file not set"));
+		InOutErrors.Log(TEXT("Could not parse data: xlsx file not set"));
 		return;
 	}
 
 	if (WorksheetName.IsEmpty())
 	{
-		InOutErrors.Log(TEXT("Could not parse asset data: no worksheet name set"));
+		InOutErrors.Log(TEXT("Could not parse data: no worksheet name set"));
 		return;
 	}
 
 	if (OutputDir.Path.IsEmpty())
 	{
-		InOutErrors.Log(TEXT("Could not parse asset data: no output dir set"));
+		InOutErrors.Log(TEXT("Could not parse data: no output dir set"));
 		return;
 	}
 
@@ -306,11 +311,11 @@ void FPMXlsxImporterSettingsEntry::ParseData(FPMXlsxImporterContextLogger& InOut
 	{
 		if (ImportType == EPMXlsxImportType::DataAsset)
 		{
-			InOutErrors.Log(TEXT("DataAssetType is not valid"));
+			InOutErrors.Log(TEXT("Could not parse data: DataAssetType is not valid"));
 		}
 		else
 		{
-			InOutErrors.Log(TEXT("DataTableRowType is not valid"));
+			InOutErrors.Log(TEXT("Could not parse data: DataTableRowType is not valid"));
 		}
 		return;
 	}
@@ -320,23 +325,23 @@ void FPMXlsxImporterSettingsEntry::ParseData(FPMXlsxImporterContextLogger& InOut
 
 	const UPMXlsxImporterSettings* ImporterSettings = GetDefault<UPMXlsxImporterSettings>();
 	check(ImporterSettings);
-	
-	const FString JSONData = PythonBridge->ReadWorksheetAsJson(XlsxAbsolutePath, WorksheetName,
+
+	const FPMXlsxImporterPythonBridgeJsonString JSONData = PythonBridge->ReadWorksheetAsJson(XlsxAbsolutePath, WorksheetName,
 		ImporterSettings->XlsxHeaderRow, ImporterSettings->XlsxDataStartRow, WorksheetTypeInfo);
-	if (JSONData.IsEmpty())
+	if (!JSONData.Error.IsEmpty())
 	{
-		InOutErrors.Log(TEXT("Json data is empty."));
+		InOutErrors.Logf(TEXT("Could not parse data: could not read worksheet:\n%s"), *JSONData.Error);
 		return;
 	}
-	if (JSONData == TEXT("ERROR"))
+	if (JSONData.JsonString.IsEmpty())
 	{
-		InOutErrors.Log(TEXT("Read worksheet failed."));
+		InOutErrors.Log(TEXT("Could not parse data: json data is empty."));
 		return;
 	}
 
 	TArray< TSharedPtr<FJsonValue> > ParsedTableRows;
 	{
-		const TSharedRef< TJsonReader<TCHAR> > JsonReader = TJsonReaderFactory<TCHAR>::Create(JSONData);
+		const TSharedRef< TJsonReader<TCHAR> > JsonReader = TJsonReaderFactory<TCHAR>::Create(JSONData.JsonString);
 		if (!FJsonSerializer::Deserialize(JsonReader, ParsedTableRows) || ParsedTableRows.Num() == 0)
 		{
 			InOutErrors.Log(FString::Printf(TEXT("Failed to parse the JSON data. Error: %s"), *JsonReader->GetErrorMessage()));
@@ -385,7 +390,7 @@ void FPMXlsxImporterSettingsEntry::ParseData(FPMXlsxImporterContextLogger& InOut
 			return;
 		}
 
-		FPMXlsxDataTableImportUtils::ImportDataTableFromXlsx(DataTable, JSONData, InOutErrors);
+		FPMXlsxDataTableImportUtils::ImportDataTableFromXlsx(DataTable, JSONData.JsonString, InOutErrors);
 	}
 }
 
@@ -400,7 +405,7 @@ void FPMXlsxImporterSettingsEntry::Validate(FPMXlsxImporterContextLogger& InOutE
 	
 	if (ImportType == EPMXlsxImportType::DataAsset && !DataAssetType.IsValid())
 	{
-		InOutErrors.Log(TEXT("Could not sync assets: invalid data asset type"));
+		InOutErrors.Log(TEXT("Could not validate assets: invalid data asset type"));
 		return;
 	}
 
@@ -432,11 +437,16 @@ void FPMXlsxImporterSettingsEntry::Validate(FPMXlsxImporterContextLogger& InOutE
 	const UPMXlsxImporterSettings* ImporterSettings = GetDefault<UPMXlsxImporterSettings>();
 	check(ImporterSettings);
 
-	TArray<FString> AssetNameColumn = PythonBridge->ReadWorksheetNameColumn(XlsxAbsolutePath, WorksheetName,
-		ImporterSettings->XlsxDataStartRow);
+	FPMXlsxImporterPythonBridgeAssetNames AssetNames = PythonBridge->ReadWorksheetAssetNames(XlsxAbsolutePath, WorksheetName,
+		ImporterSettings->XlsxHeaderRow, ImporterSettings->XlsxDataStartRow);
+	if (!AssetNames.Error.IsEmpty())
+	{
+		InOutErrors.Logf(TEXT("Could not validate assets: could not read asset names from worksheet:\n%s"), *AssetNames.Error);
+		return;
+	}
 
 	UPMXlsxDataAsset* PreviousAsset = nullptr;
-	for (const FString& AssetName : AssetNameColumn)
+	for (const FString& AssetName : AssetNames.AssetNames)
 	{
 		FString AssetPath = GetProjectRootOutputPath(AssetName);
 		UPMXlsxDataAsset* Asset = Cast<UPMXlsxDataAsset>(UEditorAssetLibrary::LoadAsset(AssetPath));
@@ -505,11 +515,11 @@ UStruct* FPMXlsxImporterSettingsEntry::GetReflectionStruct(FPMXlsxImporterContex
 	return nullptr;
 }
 
-bool FPMXlsxImporterSettingsEntry::ShouldAssetExist(const FString& AssetPath, const TArray<FPMXlsxImporterPythonBridgeDataAssetInfo>& ParsedWorksheet) const
+bool FPMXlsxImporterSettingsEntry::ShouldAssetExist(const FString& AssetPath, const TArray<FString>& AssetNames) const
 {
-	for (const FPMXlsxImporterPythonBridgeDataAssetInfo& Info : ParsedWorksheet)
+	for (const FString& AssetName : AssetNames)
 	{
-		if (AssetPath.EndsWith(FString::Printf(TEXT(".%s"), *Info.AssetName)))
+		if (AssetPath.EndsWith(FString::Printf(TEXT(".%s"), *AssetName)))
 		{
 			return true;
 		}

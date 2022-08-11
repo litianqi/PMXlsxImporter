@@ -81,7 +81,7 @@ private:
 	UStruct* GetReflectionStruct(FPMXlsxImporterContextLogger& InOutErrors) const;
 
 	// AssetPath is from UEditorAssetLibrary::ListAssets, so format is "/Game/.../AssetName.AssetName"
-	bool ShouldAssetExist(const FString& AssetPath, const TArray<FPMXlsxImporterPythonBridgeDataAssetInfo>& ParsedWorksheet) const;
+	bool ShouldAssetExist(const FString& AssetPath, const TArray<FString>& AssetNames) const;
 
 	FString GetDataTableName() const;
 };

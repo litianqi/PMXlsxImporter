@@ -13,6 +13,8 @@ class PMXLSXIMPORTER_API UPMXlsxDataAsset : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	UPMXlsxDataAsset();
+	
 	/** Set to true to ignore extra fields in the import data, if false it will warn about them */
 	UPROPERTY(EditAnywhere, Category=ImportOptions)
 	uint8 bIgnoreExtraFields : 1;

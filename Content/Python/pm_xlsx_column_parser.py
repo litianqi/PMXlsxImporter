@@ -3,17 +3,19 @@
 import unreal
 import os
 import io
+import re
 from pathlib import Path
 import openpyxl
 import json
+import hjson
 from typing import List
 
 
-def is_int(value):
+def is_int(value: str):
     try:
         int(value)
         return True
-    except:
+    except (ValueError, Exception) as ex:
         return False
 
 
@@ -36,14 +38,14 @@ class PMXlsxColumnParser:
         cur_field_index = field_index
         for column_part in reversed(column_parts):
             if cur_field_index < 0:
-                return False, "redundant fields in column header"
+                raise ValueError("redundant fields in column header")
             field: unreal.PMXlsxFieldTypeInfo = self.worksheet_type_info.all_fields[cur_field_index]
             if field.name_cpp != column_part:
-                return False, "column header field name not match with cpp name"
+                raise ValueError("column header field name not match with cpp name")
             cur_field_index = field.parent_index
 
         if cur_field_index >= 0:
-            return False, "missing fields in column header"
+            raise ValueError("missing fields in column header")
 
         # check array
         cur_field_index = field_index
@@ -52,51 +54,62 @@ class PMXlsxColumnParser:
             is_array = field.type == unreal.PMXlsxFieldType.ARRAY
             if field.parent_index < 0:  # top field
                 if self.array_index >= 0 and not is_array:
-                    return False, "column header's top field is an array (should not be)"
+                    raise ValueError("column header's top field is an array (should not be)")
             else:  # child fields
                 if is_array:
-                    return False, "right now only top field can be an array"
+                    raise ValueError("right now only top field can be an array")
             cur_field_index = field.parent_index
 
-        return True, None
+        return True
 
     def parse_column_header(self, possible_field_indices: List[int]):  # TODO: also pass in array index to validate
         column_parts = self.column_name.split('.')
         if len(column_parts) == 0:
-            return False, "column header is empty"
+            raise ValueError("column header is empty")
 
         # parse array index (only first part can be an array)
         first_part = column_parts[0]
         left_bracket_index = first_part.find("[")
         if left_bracket_index > 0:
             if not first_part.endswith("]"):
-                return False, "column header missing right bracket"
+                raise ValueError("column header missing right bracket")
             array_index_text = first_part[left_bracket_index + 1:-1]
             if not is_int(array_index_text):
-                return False, "array index in column header is not a valid number"
+                raise ValueError("array index in column header is not a valid number")
             self.array_index = int(array_index_text)
             column_parts[0] = first_part[0:left_bracket_index]  # replace filed_name[array_index] with field_name
 
         # parse fields (check is fields valid)
         failed_reasons = []
         for possible_field_index in possible_field_indices:
-            valid, reason = self.__validate_column_header_with_field_index(column_parts, possible_field_index)
-            if valid:
-                self.field_index = possible_field_index
-                return True, None
-            failed_reasons.append("{0}: {1}".format(possible_field_index, reason))
-        return False, ", ".join(failed_reasons)
+            try:
+                if self.__validate_column_header_with_field_index(column_parts, possible_field_index):
+                    self.field_index = possible_field_index
+                    return
+            except (ValueError, Exception) as ex:
+                failed_reasons.append("{0}: {1}".format(possible_field_index, str(ex)))
+        raise ValueError(", ".join(failed_reasons))
 
     def __parse_data(self, raw_data: str):
         field: unreal.PMXlsxFieldTypeInfo = self.worksheet_type_info.all_fields[self.field_index]
         if field.type == unreal.PMXlsxFieldType.ARRAY:
-            if field.element_type == unreal.PMXlsxFieldType.NUMERIC:
-                if field.element_cpp_type == "float" or field.element_cpp_type == "double":
-                    return [float(x.lstrip().rstrip()) for x in raw_data.split(",")]
-                else:
-                    return [int(x.lstrip().rstrip()) for x in raw_data.split(",")]
-            return [x.lstrip().rstrip() for x in raw_data.split(",")]
-        return raw_data
+            # array is treated as a json string
+            strip_data = raw_data.strip()
+            if strip_data.startswith("[") and strip_data.endswith("]"):
+                return hjson.loads(strip_data)
+            else:
+                # [ and ] can be omitted
+                return hjson.loads("[ " + strip_data + " ]")
+        elif field.type == unreal.PMXlsxFieldType.STRUCT:
+            strip_data = raw_data.strip()
+            if strip_data.startswith("{") and strip_data.endswith("}"):
+                # struct is treated as a json string
+                return hjson.loads(strip_data)
+            else:
+                # struct without { and } is treated as an ordinary string
+                return raw_data
+        else:
+            return raw_data
 
     def __get_top_field(self):
         field: unreal.PMXlsxFieldTypeInfo = self.worksheet_type_info.all_fields[self.field_index]

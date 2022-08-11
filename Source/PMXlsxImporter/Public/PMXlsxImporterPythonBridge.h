@@ -7,13 +7,29 @@
 #include "PMXlsxImporterPythonBridge.generated.h"
 
 USTRUCT(Blueprintable, BlueprintType)
-struct FPMXlsxImporterPythonBridgeDataAssetInfo
+struct FPMXlsxImporterPythonBridgeAssetNames
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
-	FString AssetName;
+	TArray<FString> AssetNames;
+
+	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
+	FString Error;
+};
+
+USTRUCT(Blueprintable, BlueprintType)
+struct FPMXlsxImporterPythonBridgeJsonString
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
+	FString JsonString;
+
+	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
+	FString Error;
 };
 
 UCLASS(Blueprintable)
@@ -32,8 +48,8 @@ public:
 	TArray<FString> ReadWorksheetNames(const FString& AbsoluteFilePath);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Python)
-	TArray<FString> ReadWorksheetNameColumn(const FString& AbsoluteFilePath, const FString& WorksheetName, int32 DataStartRow);
+	FPMXlsxImporterPythonBridgeAssetNames ReadWorksheetAssetNames(const FString& AbsoluteFilePath, const FString& WorksheetName, int32 HeaderRow, int32 DataStartRow);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Python)
-	FString ReadWorksheetAsJson(const FString& AbsoluteFilePath, const FString& WorksheetName, int32 HeaderRow, int32 DataStartRow, const FPMXlsxWorksheetTypeInfo& WorksheetTypeInfo);
+	FPMXlsxImporterPythonBridgeJsonString ReadWorksheetAsJson(const FString& AbsoluteFilePath, const FString& WorksheetName, int32 HeaderRow, int32 DataStartRow, const FPMXlsxWorksheetTypeInfo& WorksheetTypeInfo);
 };

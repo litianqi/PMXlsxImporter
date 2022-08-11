@@ -3,6 +3,7 @@
 import unreal
 import os
 import io
+import traceback
 from pathlib import Path
 import openpyxl
 import json
@@ -24,43 +25,58 @@ class PMXlsxImporterPythonBridgeImpl(unreal.PMXlsxImporterPythonBridge):
         return workbook.sheetnames
 
     @unreal.ufunction(override=True)
-    def read_worksheet_name_column(self, absolute_file_path, worksheet_name, data_start_row):
-        with open(absolute_file_path, "rb") as f:
-            in_mem_file = io.BytesIO(f.read())
-        workbook = openpyxl.load_workbook(in_mem_file, read_only=True, data_only=True)
-        worksheet = workbook[worksheet_name]
-        
-        results = []
-
-        for row in worksheet.iter_rows(min_row=data_start_row):
-            name_cell = row[0]  # Name should always be the first column
-            if not name_cell.value or name_cell.value.isspace():
-                break  # not valid since this row
-            results.append(str(name_cell.value))
-
-        return results
+    def read_worksheet_asset_names(self, absolute_file_path, worksheet_name, header_row, data_start_row):
+        result = unreal.PMXlsxImporterPythonBridgeAssetNames()
+        try:
+            with open(absolute_file_path, "rb") as f:
+                in_mem_file = io.BytesIO(f.read())
+            workbook = openpyxl.load_workbook(in_mem_file, read_only=True, data_only=True)
+            worksheet = workbook[worksheet_name]
+            
+            asset_names = []
+    
+            for row in worksheet.iter_rows(min_row=data_start_row):
+                name_cell = row[0]  # Name should always be the first column
+                if not name_cell.value or name_cell.value.isspace():
+                    break  # not valid since this row
+                asset_names.append(str(name_cell.value))
+    
+            result.asset_names = asset_names
+        except (ValueError, Exception) as ex:
+            result.error = traceback.format_exc()
+        finally:
+            return result
 
     @unreal.ufunction(override=True)
     def read_worksheet_as_json(self, absolute_file_path, worksheet_name, header_row, data_start_row, worksheet_type_info):
-        # parse header row
-        parser = xlsx_parser.PMXlsxParser(absolute_file_path, worksheet_name, worksheet_type_info)
-        valid = parser.parse_header_row(header_row)
-        if not valid:
-            return "ERROR"  # header parse failed, return early
+        result = unreal.PMXlsxImporterPythonBridgeJsonString()
+        try:
+            parser = xlsx_parser.PMXlsxParser(absolute_file_path, worksheet_name, worksheet_type_info)
+            
+            # parse header row
+            parser.parse_header_row(header_row)
         
-        # parse data rows
-        data_list = parser.parse_data(data_start_row)
+            # parse data rows
+            data_list = parser.parse_data(data_start_row)
+    
+            # convert data to json string
+            json_string = json.dumps(data_list, indent=4)
+    
+            # write json string to Intermediate folder for debug purpose
+            json_parent_dir = Path(absolute_file_path).stem
+            json_file_name = worksheet_name + '.json'
+            json_output_file = Path(os.path.join(
+                unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_intermediate_dir()), 'XlsxJsonFiles',
+                json_parent_dir, json_file_name))
+            json_output_file.parent.mkdir(exist_ok=True, parents=True)
+            json_output_file.write_text(json_string)
+    
+            result.json_string = json_string
 
-        # convert data to json string
-        json_string = json.dumps(data_list, indent=4)
-
-        # write json string to Intermediate folder for debug purpose
-        json_parent_dir = Path(absolute_file_path).stem
-        json_file_name = worksheet_name + '.json'
-        json_output_file = Path(os.path.join(
-            unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_intermediate_dir()), 'XlsxJsonFiles',
-            json_parent_dir, json_file_name))
-        json_output_file.parent.mkdir(exist_ok=True, parents=True)
-        json_output_file.write_text(json_string)
-
-        return json_string
+        except ValueError as ex:
+            result.error = str(ex)
+        except:
+            # handle all other exceptions
+            result.error = traceback.format_exc()
+        finally:
+            return result
