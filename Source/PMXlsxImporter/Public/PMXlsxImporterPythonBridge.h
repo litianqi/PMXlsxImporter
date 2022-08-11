@@ -6,6 +6,8 @@
 #include "PMXlsxImporterPythonReflection.h"
 #include "PMXlsxImporterPythonBridge.generated.h"
 
+class FPMXlsxImporterContextLogger;
+
 USTRUCT(Blueprintable, BlueprintType)
 struct FPMXlsxImporterPythonBridgeAssetNames
 {
@@ -42,7 +44,7 @@ public:
 	// Returns the Python subclass of UPMXlsxImporterPythonBridge which contains all of the
 	// UFUNCTION(BlueprintImplementableEvent)s that have been implemented in Python
 	// See https://forums.unrealengine.com/t/running-a-python-script-with-c/114117/3
-	static UPMXlsxImporterPythonBridge* Get();
+	static UPMXlsxImporterPythonBridge* Get(FPMXlsxImporterContextLogger* InOutErrors = nullptr);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Python)
 	TArray<FString> ReadWorksheetNames(const FString& AbsoluteFilePath);

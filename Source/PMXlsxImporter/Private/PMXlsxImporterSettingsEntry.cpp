@@ -111,7 +111,7 @@ void FPMXlsxImporterSettingsEntry::SyncAssets(FPMXlsxImporterContextLogger& InOu
 
 		IFileManager& FileManager = IFileManager::Get();
 	
-		UPMXlsxImporterPythonBridge* PythonBridge = UPMXlsxImporterPythonBridge::Get();
+		UPMXlsxImporterPythonBridge* PythonBridge = UPMXlsxImporterPythonBridge::Get(&InOutErrors);
 		if (PythonBridge == nullptr)
 		{
 			return; // UPMXlsxImporterPythonBridge::Get() logs an error when it returns null
@@ -300,7 +300,7 @@ void FPMXlsxImporterSettingsEntry::ParseData(FPMXlsxImporterContextLogger& InOut
 		return;
 	}
 
-	UPMXlsxImporterPythonBridge* PythonBridge = UPMXlsxImporterPythonBridge::Get();
+	UPMXlsxImporterPythonBridge* PythonBridge = UPMXlsxImporterPythonBridge::Get(&InOutErrors);
 	if (PythonBridge == nullptr)
 	{
 		return; // UPMXlsxImporterPythonBridge::Get() logs an error when it returns null
@@ -428,7 +428,7 @@ void FPMXlsxImporterSettingsEntry::Validate(FPMXlsxImporterContextLogger& InOutE
 		return;
 	}
 
-	UPMXlsxImporterPythonBridge* PythonBridge = UPMXlsxImporterPythonBridge::Get();
+	UPMXlsxImporterPythonBridge* PythonBridge = UPMXlsxImporterPythonBridge::Get(&InOutErrors);
 	if (PythonBridge == nullptr)
 	{
 		return; // UPMXlsxImporterPythonBridge::Get() logs an error when it returns null
