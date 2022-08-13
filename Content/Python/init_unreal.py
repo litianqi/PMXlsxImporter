@@ -7,9 +7,13 @@ import traceback
 from pathlib import Path
 import openpyxl
 import json
+import pm_xlsx_field_parser as fp
 import pm_xlsx_parser as xlsx_parser
 from importlib import *
+
 reload(xlsx_parser)
+reload(fp)
+
 
 @unreal.uclass()
 class PMXlsxImporterPythonBridgeImpl(unreal.PMXlsxImporterPythonBridge):
@@ -32,15 +36,15 @@ class PMXlsxImporterPythonBridgeImpl(unreal.PMXlsxImporterPythonBridge):
                 in_mem_file = io.BytesIO(f.read())
             workbook = openpyxl.load_workbook(in_mem_file, read_only=True, data_only=True)
             worksheet = workbook[worksheet_name]
-            
+
             asset_names = []
-    
+
             for row in worksheet.iter_rows(min_row=data_start_row):
                 name_cell = row[0]  # Name should always be the first column
                 if not name_cell.value or name_cell.value.isspace():
                     break  # not valid since this row
                 asset_names.append(str(name_cell.value))
-    
+
             result.asset_names = asset_names
         except (ValueError, Exception) as ex:
             result.error = traceback.format_exc()
@@ -48,20 +52,21 @@ class PMXlsxImporterPythonBridgeImpl(unreal.PMXlsxImporterPythonBridge):
             return result
 
     @unreal.ufunction(override=True)
-    def read_worksheet_as_json(self, absolute_file_path, worksheet_name, header_row, data_start_row, worksheet_type_info):
+    def read_worksheet_as_json(self, absolute_file_path, worksheet_name, header_row, data_start_row,
+                               worksheet_type_info):
         result = unreal.PMXlsxImporterPythonBridgeJsonString()
         try:
             parser = xlsx_parser.PMXlsxParser(absolute_file_path, worksheet_name, worksheet_type_info)
-            
+
             # parse header row
             parser.parse_header_row(header_row)
-        
+
             # parse data rows
             data_list = parser.parse_data(data_start_row)
-    
+
             # convert data to json string
             json_string = json.dumps(data_list, indent=4)
-    
+
             # write json string to Intermediate folder for debug purpose
             json_parent_dir = Path(absolute_file_path).stem
             json_file_name = worksheet_name + '.json'
@@ -70,12 +75,12 @@ class PMXlsxImporterPythonBridgeImpl(unreal.PMXlsxImporterPythonBridge):
                 json_parent_dir, json_file_name))
             json_output_file.parent.mkdir(exist_ok=True, parents=True)
             json_output_file.write_text(json_string)
-    
+
             result.json_string = json_string
 
-        except ValueError as ex:
+        except fp.ValidationError as ex:
             result.error = str(ex)
-        except:
+        except Exception as ex:
             # handle all other exceptions
             result.error = traceback.format_exc()
         finally:

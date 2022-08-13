@@ -330,7 +330,7 @@ void FPMXlsxImporterSettingsEntry::ParseData(FPMXlsxImporterContextLogger& InOut
 		ImporterSettings->XlsxHeaderRow, ImporterSettings->XlsxDataStartRow, WorksheetTypeInfo);
 	if (!JSONData.Error.IsEmpty())
 	{
-		InOutErrors.Logf(TEXT("Could not parse data: could not read worksheet:\n%s"), *JSONData.Error);
+		InOutErrors.Logf(TEXT("%s"), *JSONData.Error);
 		return;
 	}
 	if (JSONData.JsonString.IsEmpty())
