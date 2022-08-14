@@ -87,6 +87,9 @@ public:
 
 	void InternalReadStruct(const UStruct* InStruct, TArray<int32>& OutIndices);
 
+	UPROPERTY()
+	const UStruct* Struct;
+	
 	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
 	TArray<int32> TopFields;
 	

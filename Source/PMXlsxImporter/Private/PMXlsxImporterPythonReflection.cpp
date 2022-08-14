@@ -8,6 +8,8 @@
 
 void FPMXlsxWorksheetTypeInfo::ReadStruct(const UStruct* InStruct)
 {
+	Struct = InStruct;
+
 	FPMXlsxFieldTypeInfo NameField;
 	NameField.Index = 0;
 	NameField.Type = EPMXlsxFieldType::Others;
@@ -16,7 +18,7 @@ void FPMXlsxWorksheetTypeInfo::ReadStruct(const UStruct* InStruct)
 	AllFields.Add(NameField);
 	TopFields.Add(0);
 
-	InternalReadStruct(InStruct, TopFields);
+	InternalReadStruct(Struct, TopFields);
 }
 
 EPMXlsxFieldType FPMXlsxWorksheetTypeInfo::GetTypeOfField(FProperty* Property)
@@ -57,15 +59,33 @@ EPMXlsxFieldType FPMXlsxWorksheetTypeInfo::GetTypeOfField(FProperty* Property)
 
 void FPMXlsxWorksheetTypeInfo::InternalReadStruct(const UStruct* InStruct, TArray<int32>& OutIndices)
 {
-	for (TFieldIterator<FProperty> It(InStruct, EFieldIteratorFlags::IncludeSuper); It; ++It)
+	// Iterate to create a Super first FProperty array
+	// By default TFieldIterator will put Subclass first
+	TArray<FProperty*> Properties;
 	{
-		if (!It->HasMetaData(FPMXlsxMetadata::IMPORT_FROM_XLSX_METADATA_TAG))
+		const UStruct* CurrentStruct = InStruct;
+		TArray<FProperty*> CurrentStructProperties;
+		for (TFieldIterator<FProperty> It(InStruct, EFieldIteratorFlags::IncludeSuper); It; ++It)
 		{
-			continue;
+			if (!It->HasMetaData(FPMXlsxMetadata::IMPORT_FROM_XLSX_METADATA_TAG) /*&& InStruct == Struct*/)
+			{
+				continue;
+			}
+			if (It.GetStruct() != CurrentStruct)  // We meet a super struct
+			{
+				CurrentStruct = It.GetStruct();
+				CurrentStructProperties.Append(Properties);
+				Properties = MoveTempIfPossible(CurrentStructProperties);
+				CurrentStructProperties.Reset();
+			}
+			CurrentStructProperties.Add(*It);
 		}
-
-		FProperty* Property = *It;
-
+		CurrentStructProperties.Append(Properties);
+		Properties = MoveTempIfPossible(CurrentStructProperties);
+	}
+	
+	for (FProperty* Property : Properties)
+	{
 		FPMXlsxFieldTypeInfo& FieldTypeInfo = AllFields.Add_GetRef(FPMXlsxFieldTypeInfo());
 		OutIndices.Add(AllFields.Num() - 1);
 		FieldTypeInfo.Index = AllFields.Num() - 1;
@@ -74,9 +94,9 @@ void FPMXlsxWorksheetTypeInfo::InternalReadStruct(const UStruct* InStruct, TArra
 		FieldTypeInfo.Type = GetTypeOfField(Property);
 		FieldTypeInfo.CPPType = Property->GetCPPType();
 
-		if (It->HasMetaData("GameplayTagFilter"))
+		if (Property->HasMetaData("GameplayTagFilter"))
 		{
-			FieldTypeInfo.GameplayTagFilter = *It->FindMetaData("GameplayTagFilter");
+			FieldTypeInfo.GameplayTagFilter = *Property->FindMetaData("GameplayTagFilter");
 		}
 		
 		if (FieldTypeInfo.Type == EPMXlsxFieldType::Array)
@@ -89,14 +109,14 @@ void FPMXlsxWorksheetTypeInfo::InternalReadStruct(const UStruct* InStruct, TArra
 
 		if (FieldTypeInfo.Type == EPMXlsxFieldType::Struct || (FieldTypeInfo.Type == EPMXlsxFieldType::Array && FieldTypeInfo.Element_Type == EPMXlsxFieldType::Struct))
 		{
-			FieldTypeInfo.bSplitStruct = It->HasMetaData(FPMXlsxMetadata::SPLIT_STRUCT_IN_XLSX_METADATA_TAG);
+			FieldTypeInfo.bSplitStruct = Property->HasMetaData(FPMXlsxMetadata::SPLIT_STRUCT_IN_XLSX_METADATA_TAG);
 
 			if (FieldTypeInfo.bSplitStruct)
 			{
 				const FStructProperty* StructProp = nullptr;
 				if (FieldTypeInfo.Type == EPMXlsxFieldType::Struct)
 				{
-					StructProp = CastField<FStructProperty>(*It);
+					StructProp = CastField<FStructProperty>(Property);
 				}
 				else
 				{

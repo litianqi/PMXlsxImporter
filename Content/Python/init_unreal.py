@@ -41,7 +41,7 @@ class PMXlsxImporterPythonBridgeImpl(unreal.PMXlsxImporterPythonBridge):
 
             for row in worksheet.iter_rows(min_row=data_start_row):
                 name_cell = row[0]  # Name should always be the first column
-                if not name_cell.value or name_cell.value.isspace():
+                if not name_cell.value or str(name_cell.value).isspace():
                     break  # not valid since this row
                 asset_names.append(str(name_cell.value))
 
