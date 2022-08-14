@@ -54,6 +54,9 @@ public:
 	FString Element_CPPType;
 
 	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
+	FString GameplayTagFilter;
+
+	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
 	bool bSplitStruct = false;
 
 	// UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)

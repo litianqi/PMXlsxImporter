@@ -270,8 +270,27 @@ class PMXlsxStructFieldParser(PMXlsxFieldParser):
                     raise ValidationError("{0} is not a valid struct".format(strip_data), self.start_column_index, None,
                                           None, None) from None
             else:
-                # struct without { and } is treated as a ordinary string
-                return raw_data
+                # struct without { and } is treated as an ordinary string
+                if field.cpp_type == "FGameplayTag":
+                    if field.gameplay_tag_filter.isspace():
+                        return strip_data
+                    else:
+                        if strip_data.startswith(field.gameplay_tag_filter):
+                            return strip_data
+                        else:
+                            return field.gameplay_tag_filter + "." + strip_data
+                elif field.cpp_type == "FGameplayTagContainer":
+                    tags = strip_data.split(",")
+                    tags = [tag.strip() for tag in tags]
+                    tag_container = {"GameplayTags": [], "ParentTags": []}
+                    if not field.gameplay_tag_filter.isspace():
+                        tags = [
+                            tag if tag.startswith(field.gameplay_tag_filter) else field.gameplay_tag_filter + "." + tag
+                            for tag in tags]
+                    tag_container["GameplayTags"] = tags
+                    return tag_container
+                else:
+                    return raw_data
 
 
 class PMXlsxArrayFieldParser(PMXlsxFieldParser):

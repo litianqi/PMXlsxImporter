@@ -73,6 +73,11 @@ void FPMXlsxWorksheetTypeInfo::InternalReadStruct(const UStruct* InStruct, TArra
 		FieldTypeInfo.NameCPP = Property->GetNameCPP();
 		FieldTypeInfo.Type = GetTypeOfField(Property);
 		FieldTypeInfo.CPPType = Property->GetCPPType();
+
+		if (It->HasMetaData("GameplayTagFilter"))
+		{
+			FieldTypeInfo.GameplayTagFilter = *It->FindMetaData("GameplayTagFilter");
+		}
 		
 		if (FieldTypeInfo.Type == EPMXlsxFieldType::Array)
 		{
