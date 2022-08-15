@@ -14,6 +14,8 @@
 #include "PMXlsxImporterSettings.h"
 #include "Engine/Private/DataTableJSON.h"
 #include "Kismet/DataTableFunctionLibrary.h"
+#include "Kismet/KismetStringLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -46,12 +48,17 @@ void FPMXlsxImporterSettingsEntry::PostEditChangeProperty(FPropertyChangedEvent&
 		const FString XlsxFilename = FPaths::GetBaseFilename(XlsxFile.FilePath);
 		if (ImportType == EPMXlsxImportType::DataAsset && DataAssetType.IsValid())
 		{
-			OutputDir.Path = FString::Printf(TEXT("Generated/%s/%s/%s"), *DataAssetType.ToString(), *XlsxFilename, *WorksheetName);
+			OutputDir.Path = FString::Printf(TEXT("Content/Generated/%s/%s/%s"), *DataAssetType.ToString(), *XlsxFilename, *WorksheetName);
 		}
 		else if (ImportType == EPMXlsxImportType::DataTable && !DataTableRowType.IsNull())
 		{
-			OutputDir.Path = TEXT("Generated/DataTables");
+			OutputDir.Path = TEXT("Content/Generated/DataTables");
 		}
+	}
+
+	if (PropertyChangedEvent.MemberProperty->GetNameCPP() == TEXT("OutputDir"))
+	{
+		FPaths::MakePathRelativeTo(OutputDir.Path, *UKismetSystemLibrary::GetProjectDirectory());
 	}
 }
 
@@ -478,7 +485,26 @@ FString FPMXlsxImporterSettingsEntry::GetXlsxAbsolutePath() const
 
 FString FPMXlsxImporterSettingsEntry::GetProjectRootOutputDir() const
 {
-	return FString::Printf(TEXT("/Game/%s"), *OutputDir.Path);
+	if (OutputDir.Path.StartsWith("Plugins"))
+	{
+		const int32 ContentIdx = UKismetStringLibrary::FindSubstring(OutputDir.Path, TEXT("Content"), true);
+		const int32 PluginEndSlashIdx = ContentIdx - 1;
+		const int32 PluginStartSlashIdx = UKismetStringLibrary::FindSubstring(OutputDir.Path, TEXT("/"), true, true, PluginEndSlashIdx-1);
+		const FString PluginName = UKismetStringLibrary::GetSubstring(OutputDir.Path, PluginStartSlashIdx + 1, PluginEndSlashIdx-PluginStartSlashIdx-1);
+		const int32 ContentEndSlashIdx = ContentIdx + 7;
+		const FString DirRelativeToPluginContent = UKismetStringLibrary::GetSubstring(OutputDir.Path, ContentEndSlashIdx+1, OutputDir.Path.Len() - ContentEndSlashIdx - 1);
+		return FString::Printf(TEXT("/%s/%s"), *PluginName, *DirRelativeToPluginContent);
+	}
+	else if (OutputDir.Path.StartsWith("Content"))
+	{
+		constexpr int32 ContentEndSlashIdx = 7;
+		const FString DirRelativeToContent = UKismetStringLibrary::GetSubstring(OutputDir.Path, ContentEndSlashIdx+1, OutputDir.Path.Len() - ContentEndSlashIdx - 1);
+		return FString::Printf(TEXT("/Game/%s"), *DirRelativeToContent);
+	}
+	else
+	{
+		return FString::Printf(TEXT("/Game/%s"), *OutputDir.Path);
+	}
 }
 
 FString FPMXlsxImporterSettingsEntry::GetProjectRootOutputPath(const FString& AssetName) const
