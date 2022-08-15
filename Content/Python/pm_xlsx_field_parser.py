@@ -250,6 +250,28 @@ class PMXlsxStructFieldParser(PMXlsxFieldParser):
             PMXlsxFieldParser.parse_header_row(self, header_row, start_column_index, array_index)
         return self.end_column_index
 
+    @staticmethod
+    def __parse_gameplay_tag(field, strip_data):
+        if field.gameplay_tag_filter.isspace():
+            return strip_data
+        else:
+            if strip_data.startswith(field.gameplay_tag_filter):
+                return {"TagName": strip_data}
+            else:
+                return {"TagName": field.gameplay_tag_filter + "." + strip_data}
+
+    @staticmethod
+    def __parse_gameplay_tag_container(field, strip_data):
+        tags = strip_data.split(",")
+        tag_container = {"GameplayTags": [], "ParentTags": []}
+        if not field.gameplay_tag_filter.isspace():
+            for tag in tags:
+                tag = tag.strip()
+                if not tag.startswith(field.gameplay_tag_filter):
+                    tag = field.gameplay_tag_filter + "." + tag
+                tag_container["GameplayTags"].append({"TagName": tag})
+        return tag_container
+
     def parse_data_row(self, data_row):
         field: unreal.PMXlsxFieldTypeInfo = self.worksheet_type_info.all_fields[self.field_index]
 
@@ -272,23 +294,9 @@ class PMXlsxStructFieldParser(PMXlsxFieldParser):
             else:
                 # struct without { and } is treated as an ordinary string
                 if field.cpp_type == "FGameplayTag":
-                    if field.gameplay_tag_filter.isspace():
-                        return strip_data
-                    else:
-                        if strip_data.startswith(field.gameplay_tag_filter):
-                            return strip_data
-                        else:
-                            return field.gameplay_tag_filter + "." + strip_data
+                    return self.__parse_gameplay_tag(field, strip_data)
                 elif field.cpp_type == "FGameplayTagContainer":
-                    tags = strip_data.split(",")
-                    tags = [tag.strip() for tag in tags]
-                    tag_container = {"GameplayTags": [], "ParentTags": []}
-                    if not field.gameplay_tag_filter.isspace():
-                        tags = [
-                            tag if tag.startswith(field.gameplay_tag_filter) else field.gameplay_tag_filter + "." + tag
-                            for tag in tags]
-                    tag_container["GameplayTags"] = tags
-                    return tag_container
+                    return self.__parse_gameplay_tag_container(field, strip_data)
                 else:
                     return raw_data
 
