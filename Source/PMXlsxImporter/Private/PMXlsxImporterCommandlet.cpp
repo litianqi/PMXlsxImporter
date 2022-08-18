@@ -14,7 +14,7 @@ int32 UPMXlsxImporterCommandlet::Main(const FString& Params)
 	ParseCommandLine(*Params, Tokens, Switches);
 
 	// From PythonScriptCommandlet.cpp: tick once to ensure that any start-up scripts have been run
-	FTicker::GetCoreTicker().Tick(0.0f);
+	FTSTicker::GetCoreTicker().Tick(0.0f);
 
 	const UPMXlsxImporterSettings* SettingsCDO = GetDefault<UPMXlsxImporterSettings>();
 	FPMXlsxImporterContextLogger Errors;

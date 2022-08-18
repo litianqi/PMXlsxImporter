@@ -63,7 +63,7 @@ public:
 	// bool bSplitArray = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
-	int32 Index;
+	int32 Index = -1;
 
 	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
 	int32 ParentIndex = -1;
@@ -88,7 +88,7 @@ public:
 	void InternalReadStruct(const UStruct* InStruct, TArray<int32>& OutIndices);
 
 	UPROPERTY()
-	const UStruct* Struct;
+	const UStruct* Struct = nullptr;
 	
 	UPROPERTY(BlueprintReadWrite, Category = XlsxImporter)
 	TArray<int32> TopFields;
